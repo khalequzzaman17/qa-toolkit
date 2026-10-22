@@ -40,8 +40,10 @@ abstract class Check
     /**
      * Run the check. Must return a CheckResult — never throw for "expected"
      * failures (e.g. config missing); only throw for genuine tool errors.
+     *
+     * @return CheckResult
      */
-    abstract public function run(): CheckResult;
+    abstract public function run();
 
     /**
      * Convenience helpers for the most common outcomes.

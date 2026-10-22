@@ -2,8 +2,8 @@
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/khalequzzaman17/qa-toolkit.svg?style=flat-square)](https://packagist.org/packages/khalequzzaman17/qa-toolkit)
 [![Total Downloads](https://img.shields.io/packagist/dt/khalequzzaman17/qa-toolkit.svg?style=flat-square)](https://packagist.org/packages/khalequzzaman17/qa-toolkit)
-[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/khalequzzaman17/qa-toolkit/qa-toolkit.yml?branch=main&label=tests&style=flat-square)](https://github.com/khalequzzaman17/qa-toolkit/actions)
-[![GitHub Code Style Status](https://img.shields.io/github/actions/workflow/status/khalequzzaman17/qa-toolkit/qa-toolkit.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/khalequzzaman17/qa-toolkit/actions)
+[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/khalequzzaman17/qa-toolkit/ci.yml?branch=main&label=tests&style=flat-square)](https://github.com/khalequzzaman17/qa-toolkit/actions)
+[![GitHub Lint Status](https://img.shields.io/github/actions/workflow/status/khalequzzaman17/qa-toolkit/ci.yml?branch=main&label=lint&style=flat-square)](https://github.com/khalequzzaman17/qa-toolkit/actions)
 [![PHP Version Required](https://img.shields.io/packagist/php-v/khalequzzaman17/qa-toolkit?style=flat-square)](https://packagist.org/packages/khalequzzaman17/qa-toolkit)
 [![Laravel Version Required](https://img.shields.io/badge/Laravel-10%20%7C%2011%20%7C%2012-orange?style=flat-square)](https://www.laravel.com)
 [![License](https://img.shields.io/packagist/l/khalequzzaman17/qa-toolkit?style=flat-square)](https://github.com/khalequzzaman17/qa-toolkit/blob/main/LICENSE)
@@ -31,6 +31,7 @@ Built for **mixed teams** (developers + QA engineers + PMs) — every check emit
 7. [Test stubs](#test-stubs)
 8. [Extending — add your own checks](#extending)
 9. [FAQ](#faq)
+10. [Bug reports & security](#bug-reports--security)
 
 ---
 
@@ -320,11 +321,11 @@ return [
 
 ## CI pipelines
 
-Two ready-to-use pipelines are shipped in the `ci/` directory.
+The package ships ready-to-use CI pipelines in the `ci/` directory for your applications, while the package's own test suite runs via [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
-### GitHub Actions
+### GitHub Actions (for your app)
 
-Publish to `.github/workflows/qa-toolkit.yml`:
+Publish the workflow template (`ci/github-actions.yml`) directly into your Laravel project as `.github/workflows/qa-toolkit.yml`:
 
 ```bash
 php artisan vendor:publish --tag=qa-toolkit-ci
@@ -469,7 +470,13 @@ The **Website Launch QA Toolkit for Laravel** is open-sourced software licensed 
 
 **Khalequzzaman** — [github.com/khalequzzaman17](https://github.com/khalequzzaman17)
 
-Maintained as an open-source project. Contributions, bug reports, and feature requests are welcome on the [GitHub repository](https://github.com/khalequzzaman17/qa-toolkit).
+## Bug reports & security
+
+### Bug reports & feature requests
+For general bugs, issues, and feature requests, please open an issue on the [GitHub Issues](https://github.com/khalequzzaman17/qa-toolkit/issues) tracker.
+
+### Security vulnerabilities
+If you discover a security vulnerability within the QA Toolkit, please **do NOT open a public issue**. Instead, follow our [Security Policy](SECURITY.md) and report it privately via email to [khalequzzaman17@gmail.com](mailto:khalequzzaman17@gmail.com) or via [GitHub Security Advisories](https://github.com/khalequzzaman17/qa-toolkit/security/advisories/new).
 
 ## Credits
 

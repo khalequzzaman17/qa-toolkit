@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   test:
-    name: Test (PHP ${{ matrix.php }})
+    name: Test (PHP ${{ matrix.php }} - Laravel ${{ matrix.laravel }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -70,7 +70,7 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, pdo_mysql, redis, bcmath, opcache, intl, gd, fileinfo
-          coverage: xdebug
+          coverage: none
           ini-values: memory_limit=512M, opcache.enable=1, opcache.enable_cli=1
 
       - name: Cache Composer
@@ -82,17 +82,16 @@ jobs:
 
       - name: Install dependencies
         run: |
-          composer config -- "platform.laravel" "${{ matrix.laravel }}" || true
-          composer require "illuminate/console:${{ matrix.laravel }}" "illuminate/support:${{ matrix.laravel }}" "illuminate/database:${{ matrix.laravel }}" "illuminate/filesystem:${{ matrix.laravel }}" --no-update
-          composer install --no-interaction --prefer-dist --no-progress
+          case "${{ matrix.laravel }}" in
+            "10.*") TESTBENCH="^8.0" ;;
+            "11.*") TESTBENCH="^9.0" ;;
+            "12.*") TESTBENCH="^10.0" ;;
+          esac
+          composer require "illuminate/console:${{ matrix.laravel }}" "illuminate/support:${{ matrix.laravel }}" "illuminate/database:${{ matrix.laravel }}" "illuminate/filesystem:${{ matrix.laravel }}" "orchestra/testbench:${TESTBENCH}" --no-update --no-interaction
+          composer update --prefer-dist --no-interaction --no-progress
 
       - name: Run the toolkit's own test suite
-        run: |
-          if [ -f vendor/bin/pest ]; then
-            vendor/bin/pest --coverage --min=70
-          else
-            vendor/bin/phpunit
-          fi
+        run: vendor/bin/pest
 
       - name: Smoke-test: register the service provider
         run: |

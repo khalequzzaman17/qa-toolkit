@@ -2,18 +2,31 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in the QA Toolkit for Laravel, please report it responsibly — **do not open a public issue**.
+If you discover a security vulnerability within the QA Toolkit for Laravel, please report it responsibly and privately — **please do NOT open a public GitHub issue**.
 
-- Email: open an issue labeled `security` on GitHub only if you cannot reach me privately, otherwise please use the contact form on my [GitHub profile](https://github.com/khalequzzaman17).
-- Include: affected version, the check ID or class affected, the smallest reproduction case, and the impact.
+### How to Report
 
-You will receive a response within 72 hours. If the issue is accepted, a fix will be released as a patch version within 7 days.
+Please report security vulnerabilities through either of these private channels:
+1. **Email**: Send details directly to [khalequzzaman17@gmail.com](mailto:khalequzzaman17@gmail.com) with the subject `[Security] QA Toolkit Vulnerability`.
+2. **GitHub Security Advisories**: Submit privately via [GitHub Security Advisories](https://github.com/khalequzzaman17/qa-toolkit/security/advisories/new).
+
+Please include in your report:
+- The affected package version
+- The check ID, class, or command affected
+- Steps to reproduce or a minimal reproduction case
+- An explanation of the potential impact
+
+You will receive an acknowledgement within 48 hours. If confirmed, a security patch will be tagged and released promptly.
+
+## General Bug Reports & Feature Requests
+
+For standard bugs, questions, and feature requests that do not expose a security vulnerability, please open an issue on [GitHub Issues](https://github.com/khalequzzaman17/qa-toolkit/issues).
 
 ## Scope
 
-This security policy covers the **toolkit itself** — its source code in this repository. It does **not** cover the applications that use the toolkit. The toolkit is a static-analyser-style helper; running it does not grant the toolkit access to your production data.
+This security policy covers the **toolkit itself** — its source code in this repository. It does **not** cover applications that use the toolkit. The toolkit performs read-only inspection and static checks; running it does not grant the toolkit access to modify your production data.
 
 ## Out of Scope
 
-- Vulnerabilities in third-party packages that the toolkit depends on (please report to upstream maintainers).
-- Issues flagged by the toolkit itself (those are documented in the README, not security vulnerabilities in the toolkit).
+- Vulnerabilities in upstream third-party dependencies (please report to upstream maintainers).
+- Issues and smells in your application flagged by the toolkit during QA sweeps (those are application-level issues, not vulnerabilities in the toolkit itself).
