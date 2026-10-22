@@ -1,0 +1,39 @@
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Dependencies
+/vendor/
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Test artifacts
+.phpunit.result.cache
+.phpunit.cache/
+coverage.xml
+clover.xml
+build/logs/
+
+# Local environment
+.env
+.env.backup
+.env.local
+.env.*.local
+Homestead.json
+Homestead.yaml
+
+# CI / build artifacts
+storage/app/qa-*.json
+storage/app/qa-*.md
+storage/app/qa-*.txt
+
+# Tooling output
+.php-cs-fixer.cache
+.php-cs-fixer.php
+.pint.cache

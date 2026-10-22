@@ -1,0 +1,125 @@
+# QA Toolkit — CI for the package itself
+#
+# Runs on every push and PR to main. Validates that the toolkit's own
+# test suite (tests/) still passes, and that the toolkit can be loaded
+# into a fresh Laravel app via composer without errors.
+
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: [ '8.1', '8.2', '8.3', '8.4' ]
+        laravel: [ '10.*', '11.*', '12.*' ]
+        exclude:
+          - php: '8.1'
+            laravel: '12.*'
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: qa_toolkit
+        ports: [ 3306:3306 ]
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -proot"
+          --health-interval=10s --health-timeout=5s --health-retries=5
+
+      redis:
+        image: redis:7-alpine
+        ports: [ 6379:6379 ]
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s --health-timeout=5s --health-retries=5
+
+    env:
+      APP_ENV: testing
+      APP_KEY: base64:xT1t0P5gK0jUqN1jY8n3oR2k8wU5tQ+T8vW2xY7zU5c=
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: qa_toolkit
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      CACHE_DRIVER: redis
+      SESSION_DRIVER: redis
+      QUEUE_CONNECTION: redis
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, pdo_mysql, redis, bcmath, opcache, intl, gd, fileinfo
+          coverage: xdebug
+          ini-values: memory_limit=512M, opcache.enable=1, opcache.enable_cli=1
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ matrix.php }}-${{ matrix.laravel }}-${{ hashFiles('composer.json') }}
+          restore-keys: composer-${{ matrix.php }}-${{ matrix.laravel }}-
+
+      - name: Install dependencies
+        run: |
+          composer config -- "platform.laravel" "${{ matrix.laravel }}" || true
+          composer require "illuminate/console:${{ matrix.laravel }}" "illuminate/support:${{ matrix.laravel }}" "illuminate/database:${{ matrix.laravel }}" "illuminate/filesystem:${{ matrix.laravel }}" --no-update
+          composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Run the toolkit's own test suite
+        run: |
+          if [ -f vendor/bin/pest ]; then
+            vendor/bin/pest --coverage --min=70
+          else
+            vendor/bin/phpunit
+          fi
+
+      - name: Smoke-test: register the service provider
+        run: |
+          php -r '
+            require "vendor/autoload.php";
+            $app = new \Illuminate\Foundation\Application(__DIR__);
+            $app->register(\QaToolkit\QaToolkitServiceProvider::class);
+            echo "Service provider registered OK\n";
+            echo "Registered checks: " . count(\QaToolkit\QaToolkitServiceProvider::CHECKS) . "\n";
+          '
+
+  lint:
+    name: Lint (PHP syntax)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring
+          coverage: none
+
+      - name: PHP syntax check on all source files
+        run: find src/ -name "*.php" -print0 | xargs -0 -n1 php -l
+
+      - name: PHP syntax check on test stubs
+        run: find tests/ -name "*.php" -print0 | xargs -0 -n1 php -l

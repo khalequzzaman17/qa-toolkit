@@ -1,0 +1,229 @@
+# QA Toolkit — GitLab CI pipeline
+#
+# This toolkit's canonical home is GitHub (github.com/khalequzzaman17/qa-toolkit).
+# For GitLab projects, copy this file to your repo's root as `.gitlab-ci.yml`
+# (or include from your existing pipeline via `include:local`):
+#
+#   include:
+#     - local: '/path/to/gitlab-ci.yml'
+#
+# Or, if you have mirrored the repo to your GitLab instance:
+#   include:
+#     - project: 'your-namespace/qa-toolkit'
+#       file: '/ci/gitlab-ci.yml'
+#       ref: 'main'
+
+stages:
+  - prepare
+  - test
+  - qa
+  - deploy
+
+variables:
+  PHP_VERSION: "8.3"
+  COMPOSER_CACHE_DIR: "/cache/composer"
+  APP_ENV: testing
+  APP_KEY: "base64:xT1t0P5gK0jUqN1jY8n3oR2k8wU5tQ+T8vW2xY7zU5c="
+  APP_URL: https://localhost
+  DB_CONNECTION: mysql
+  DB_HOST: mysql
+  DB_PORT: 3306
+  DB_DATABASE: laravel_qa
+  DB_USERNAME: qa
+  DB_PASSWORD: qa-secret
+  CACHE_DRIVER: redis
+  SESSION_DRIVER: redis
+  QUEUE_CONNECTION: redis
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  MAIL_MAILER: log
+  LOG_CHANNEL: stderr
+  QA_FAIL_ON: warning
+  QA_FORMAT: markdown
+
+# --- Reusable base template ---
+.base:
+  image: lorisleiva/laravel-docker:${PHP_VERSION}
+  before_script:
+    - composer install --no-interaction --prefer-dist --no-progress
+    - |
+      if ! composer show khalequzzaman17/qa-toolkit 2>/dev/null; then
+        composer config repositories.toolkit path ./packages/qa-toolkit || true
+        composer require khalequzzaman17/qa-toolkit:dev-main --no-update
+        composer install --no-interaction --prefer-dist
+      fi
+    - php artisan vendor:publish --tag=qa-toolkit-config --force || true
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - vendor/
+      - node_modules/
+      - .npm/
+
+# --- 1. Prepare ---
+prepare:
+  extends: .base
+  stage: prepare
+  services:
+    - name: mysql:8.0
+      alias: mysql
+      command:
+        - --default-authentication-plugin=mysql_native_password
+      variables:
+        MYSQL_ROOT_PASSWORD: root
+        MYSQL_DATABASE: laravel_qa
+        MYSQL_USER: qa
+        MYSQL_PASSWORD: qa-secret
+    - name: redis:7-alpine
+      alias: redis
+  script:
+    - npm ci
+    - npm run build
+    - php artisan key:generate --ansi || true
+    - php artisan migrate --force --ansi
+    - php artisan db:seed --force --ansi || true
+    - php artisan config:cache
+    - php artisan route:cache
+    - php artisan view:cache
+    - php artisan event:cache || true
+  artifacts:
+    paths:
+      - public/build/
+      - bootstrap/cache/
+    expire_in: 1 day
+
+# --- 2. Test suite ---
+test:
+  extends: .base
+  stage: test
+  services:
+    - name: mysql:8.0
+      alias: mysql
+      variables:
+        MYSQL_ROOT_PASSWORD: root
+        MYSQL_DATABASE: laravel_qa
+        MYSQL_USER: qa
+        MYSQL_PASSWORD: qa-secret
+    - name: redis:7-alpine
+      alias: redis
+  script:
+    - |
+      if [ -f vendor/bin/pest ]; then
+        vendor/bin/pest --stop-on-failure --coverage --min=70
+      else
+        vendor/bin/phpunit --stop-on-failure
+      fi
+  coverage: '/^\s*Lines:\s*\d+.\d+\%/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: build/logs/clover.xml
+    paths:
+      - build/logs/
+    expire_in: 1 week
+
+# --- 3. QA suites (parallel) ---
+qa:security:
+  extends: .base
+  stage: qa
+  needs: [prepare]
+  services:
+    - name: redis:7-alpine
+      alias: redis
+  script:
+    - php artisan qa:security --report=storage/app/qa-security.md
+  artifacts:
+    paths:
+      - storage/app/qa-security.md
+    expire_in: 30 days
+  allow_failure: false
+
+qa:performance:
+  extends: .base
+  stage: qa
+  needs: [prepare]
+  services:
+    - name: mysql:8.0
+      alias: mysql
+      variables:
+        MYSQL_ROOT_PASSWORD: root
+        MYSQL_DATABASE: laravel_qa
+        MYSQL_USER: qa
+        MYSQL_PASSWORD: qa-secret
+    - name: redis:7-alpine
+      alias: redis
+  script:
+    - php artisan qa:performance --report=storage/app/qa-performance.md
+  artifacts:
+    paths:
+      - storage/app/qa-performance.md
+    expire_in: 30 days
+  allow_failure: false
+
+qa:functional:
+  extends: .base
+  stage: qa
+  needs: [prepare]
+  services:
+    - name: mysql:8.0
+      alias: mysql
+      variables:
+        MYSQL_ROOT_PASSWORD: root
+        MYSQL_DATABASE: laravel_qa
+        MYSQL_USER: qa
+        MYSQL_PASSWORD: qa-secret
+    - name: redis:7-alpine
+      alias: redis
+  script:
+    - php artisan qa:functional --report=storage/app/qa-functional.md
+  artifacts:
+    paths:
+      - storage/app/qa-functional.md
+    expire_in: 30 days
+  allow_failure: false
+
+qa:infra:
+  extends: .base
+  stage: qa
+  needs: [prepare]
+  # Many infra checks expect a live production host — let them soft-fail in CI.
+  allow_failure: true
+  script:
+    - php artisan qa:infra --report=storage/app/qa-infra.md
+  artifacts:
+    paths:
+      - storage/app/qa-infra.md
+    expire_in: 30 days
+
+qa:summary:
+  extends: .base
+  stage: qa
+  needs: [qa:security, qa:performance, qa:functional]
+  script:
+    - php artisan qa:report --format=json --path=storage/app/qa-summary.json
+    - |
+      WORST=$(php -r '$j=json_decode(file_get_contents("storage/app/qa-summary.json"),true); echo $j["worst_severity"];')
+      echo "Worst severity: $WORST"
+      if [ "$WORST" = "critical" ] || [ "$WORST" = "error" ]; then
+        echo "QA reports $WORST — failing the pipeline."
+        exit 1
+      fi
+  artifacts:
+    paths:
+      - storage/app/qa-summary.json
+      - storage/app/qa-report.md
+    expire_in: 90 days
+
+# --- 4. Deploy (manual, only on main) ---
+deploy:production:
+  stage: deploy
+  needs: [qa:summary]
+  only:
+    - main
+  when: manual
+  script:
+    - echo "All QA suites passed — ready to deploy."
+    - ./deploy.sh || true
+  environment:
+    name: production
